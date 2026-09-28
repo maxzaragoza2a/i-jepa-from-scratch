@@ -1,0 +1,7 @@
+# TensorFlow 2.21 ships with Keras 3.x.
+# No native-Windows GPU support since TensorFlow 2.11, so this runs on CPU.
+tensorflow==2.21.0
+keras==3.15.0
+numpy==2.4.1
+
+matplotlib==3.10.8

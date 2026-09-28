@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Keras / TensorFlow
+*.keras
+*.h5
+*.weights.h5
+checkpoints/
+logs/
+runs/
+
+# Datasets are cached by Keras in ~/.keras/datasets, not in the repo.
+data/
+
+# Figures written by `python -m jepa.visualise`.
+masked_samples.png
+
+# Notebooks / editors
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
