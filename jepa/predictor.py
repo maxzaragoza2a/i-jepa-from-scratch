@@ -6,9 +6,12 @@ Shapes for one target block (M context tokens, T target tokens):
     -> blocks, norm -> last T tokens -> Dense -> (B, T, 128)
 """
 
-import keras
 
+
+import keras
+from keras import ops
 from jepa.transformer import TransformerBlock
+from jepa.patch_embed import get_2d_sincos_pos_embed
 
 
 class Predictor(keras.layers.Layer):
@@ -26,14 +29,35 @@ class Predictor(keras.layers.Layer):
             num_heads: attention heads, must divide predictor_embed_dim.
         """
         super().__init__(**kwargs)
-        # TODO: store arguments, input Dense, blocks + norm, output Dense.
-        raise NotImplementedError
+        self.grid_size = grid_size
+        self.embed_dim = embed_dim
+        self.predictor_embed_dim = predictor_embed_dim
+        self.depth = depth
+        self.num_heads = num_heads
+        self.mlp_ratio = mlp_ratio
+        self.dropout = dropout
+
+        self.input_proj = keras.layers.Dense(predictor_embed_dim, name="input_proj")
+        self.blocks = [
+            TransformerBlock(predictor_embed_dim, num_heads, mlp_ratio, dropout, name=f"block_{i}")
+            for i in range(depth)
+        ]
+        self.norm = keras.layers.LayerNormalization(epsilon=1e-6, name="norm")
+        self.output_proj = keras.layers.Dense(embed_dim, name="output_proj")
 
     def build(self, input_shape):
         """Create mask_token (1, 1, predictor_embed_dim), learned, and
         pos_embed (num_patches, predictor_embed_dim), fixed."""
-        # TODO: set pos_embed through the initializer, not assign().
-        raise NotImplementedError
+        num_patches = self.grid_size **2
+        self.mask_token = self.add_weight(
+            name="mask_token", shape=(1, 1, self.predictor_embed_dim),
+            initializer=keras.initializers.RandomNormal(stddev=0.02), trainable=True
+        )
+        self.pos_embed = self.add_weight(
+            name="pos_embed", shape=(num_patches, self.predictor_embed_dim),
+            initializer=keras.initializers.Constant(get_2d_sincos_pos_embed(self.predictor_embed_dim, self.grid_size)), trainable=False
+        )
+        super().build(input_shape)
 
     def call(self, context_tokens, context_indices, target_indices, training=None):
         """Predict the target encoder's embeddings at target_indices.
@@ -46,13 +70,35 @@ class Predictor(keras.layers.Layer):
         Returns:
             (B, T, embed_dim).
         """
-        # TODO:
-        #   1. context: Dense 128 -> 64 (+ position?)
-        #   2. mask tokens: broadcast mask_token to (B, T, 64), add positions
-        #   3. concatenate, run the blocks, norm
-        #   4. keep the last T tokens, Dense 64 -> 128
-        raise NotImplementedError
+        B = ops.shape(context_tokens)[0]
+        M = ops.shape(context_tokens)[1]
+        T = ops.shape(target_indices)[0]
+
+        x = self.input_proj(context_tokens)
+        pos_ctx = ops.take(self.pos_embed, context_indices, axis=0)
+        ctx = x + pos_ctx
+
+        x_target = ops.take(self.pos_embed, target_indices, axis=0)
+        mask_tokens = self.mask_token + x_target
+        mask_tokens = ops.broadcast_to(mask_tokens, (B, T, self.predictor_embed_dim))
+
+        assembled = ops.concatenate([ctx, mask_tokens], axis=1)
+        for block in self.blocks:
+            assembled = block(assembled, training=training)
+        assembled = self.norm(assembled)
+        target_tokens = assembled[:, M:, :]
+        return self.output_proj(target_tokens)
 
     def get_config(self):
-        # TODO
-        raise NotImplementedError
+        config = super().get_config()
+        config.update({
+            "grid_size": self.grid_size,
+            "embed_dim": self.embed_dim,
+            "predictor_embed_dim": self.predictor_embed_dim,
+            "depth": self.depth,
+            "num_heads": self.num_heads,
+            "mlp_ratio": self.mlp_ratio,
+            "dropout": self.dropout,
+        })
+        return config
+
