@@ -1,4 +1,4 @@
-# JEPA-model-for-image-generation
+# i-jepa-from-scratch
 
 This project explores the principles behind Joint Embedding Predictive Architectures (JEPA) through a from-scratch implementation using TensorFlow/Keras.
 
