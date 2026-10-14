@@ -22,3 +22,5 @@ The pipeline works, but the predictions are clearly not good. On the bird image 
 
 - A larger embedding dimension.
 - Re-training on a higher-resolution dataset (e.g. STL-10 or Tiny ImageNet at 64x64), since CIFAR-10 is only 32x32 and the model cannot run at another resolution without re-training.
+
+The detailed plan for these next steps is in [TODO.md](TODO.md).
