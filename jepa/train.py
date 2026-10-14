@@ -120,7 +120,8 @@ def save_checkpoint(model: JEPA, out_dir: str, name: str = "jepa"):
         Path of the saved file.
     """
     # The whole JEPA: VisionTransformer is a Layer and has no save_weights.
-    # To reload: JEPA(config), init_target_encoder(), then load_weights(path).
+    # To reload: JEPA(config), init_target_encoder(), one call on a batch to
+    # build the predictor, then load_weights(path).
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, f"{name}.weights.h5")
     model.save_weights(path)
