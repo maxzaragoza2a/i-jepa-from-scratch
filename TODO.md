@@ -61,11 +61,22 @@ Mostly a config change in `jepa/config.py`:
 - [x] Update the shape comments written for `embed_dim=128` (`jepa/attention.py`, `jepa/model.py`, `jepa/patch_embed.py`).
 - [x] Check the tests that hard-code 128 / 64.
 - [ ] Watch memory and training time: the parameter count grows about 4x (0.92M -> 3.63M trainable), the baseline took ~4 h on CPU.
-- [ ] Train `cifar10_d256`: `python -m jepa.train --run cifar10_d256 > logs/cifar10_d256.log 2>&1`.
+- [ ] Train `cifar10_d256` on a Kaggle GPU (see section 3 below), or locally: `python -m jepa.train --run cifar10_d256 > logs/cifar10_d256.log 2>&1`.
 
 ---
 
-## 3. Evaluation and comparison
+## 3. Training on a cloud GPU (Kaggle)
+
+The CPU is too slow for the new runs (the baseline already took ~4 h). TensorFlow has had no GPU support on native Windows since 2.11, so the runs go to a free Kaggle GPU (T4 or P100, ~30 h per week).
+
+- [x] `notebooks/kaggle_train.ipynb`: clones the repo, checks that a GPU is visible, runs a 20-step smoke test, then trains the `RUN` preset. It keeps Kaggle's own TensorFlow, writes `checkpoints/<run>/` and `logs/<run>.log`, and zips them into `<run>.zip`, to unzip at the project root.
+- [ ] Import the notebook into Kaggle (Accelerator: GPU, Internet: on) and run `cifar10_d256` with *Save & Run All*.
+- [ ] Note the time per step in the smoke test. `train_step` runs eagerly (no `tf.function`), so the GPU speed-up may be small. If it is, compile `train_step`, keeping in mind that the mask sizes change from one batch to the next and would cause retracing.
+- [ ] There is no resume from a checkpoint: a session that stops (12 h limit) means restarting the run. Add a resume (model and optimizer state, step, RNG) if the STL-10 runs come close to the limit.
+
+---
+
+## 4. Evaluation and comparison
 
 For each run (`cifar10_d128` as the baseline, `cifar10_d256`, then STL-10):
 - [ ] Loss curve (`plot_loss.py`).
