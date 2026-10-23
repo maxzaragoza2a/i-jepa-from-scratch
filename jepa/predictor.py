@@ -1,9 +1,9 @@
 """Predictor: context embeddings -> predicted target embeddings.
 
 Shapes for one target block (M context tokens, T target tokens):
-    (B, M, 128) -> Dense -> (B, M, 64)
-    + T mask tokens (learned vector + positional code) -> (B, M + T, 64)
-    -> blocks, norm -> last T tokens -> Dense -> (B, T, 128)
+    (B, M, 256) -> Dense -> (B, M, 128)
+    + T mask tokens (learned vector + positional code) -> (B, M + T, 128)
+    -> blocks, norm -> last T tokens -> Dense -> (B, T, 256)
 """
 
 

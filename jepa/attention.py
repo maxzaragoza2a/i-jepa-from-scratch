@@ -1,8 +1,8 @@
 """Multi-head self-attention.
 
-Shapes (embed_dim=128, num_heads=4):
-    (B, N, 128) -> q, k, v -> (B, 4, N, 32) -> weights (B, 4, N, N)
-    -> (B, 4, N, 32) -> (B, N, 128)
+Shapes (embed_dim=256, num_heads=8):
+    (B, N, 256) -> q, k, v -> (B, 8, N, 32) -> weights (B, 8, N, N)
+    -> (B, 8, N, 32) -> (B, N, 256)
 
 Nothing depends on N, since the context length changes at every draw.
 """

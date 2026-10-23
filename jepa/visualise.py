@@ -1,9 +1,10 @@
-"""Plot the context and target masks applied to CIFAR-10 images.
+"""Plot the context and target masks applied to training images.
 
 Usage:
 
     python -m jepa.visualise
     python -m jepa.visualise --seed 42
+    python -m jepa.visualise --run stl10_d256
     python -m jepa.visualise --out masks.png --no-show
 
 Rows: input image, context patches only, target blocks over a dimmed image.
@@ -14,7 +15,7 @@ import argparse
 
 import numpy as np
 
-from jepa.config import JEPAConfig
+from jepa.config import DEFAULT_RUN, PRESETS, JEPAConfig, get_config
 from jepa.data import build_pretrain_dataset
 from jepa.masking import sample_masks
 
@@ -149,6 +150,8 @@ def plot_masked_samples(config=None, seed=None, num_images=5, out=None, show=Tru
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--run", default=DEFAULT_RUN, choices=sorted(PRESETS),
+                        help="preset of jepa/config.py, for the dataset and the grid")
     parser.add_argument("--seed", type=int, default=None,
                         help="reproduce a specific draw (default: random)")
     parser.add_argument("--images", type=int, default=5,
@@ -160,6 +163,7 @@ def main():
     args = parser.parse_args()
 
     seed = plot_masked_samples(
+        config=get_config(args.run),
         seed=args.seed,
         num_images=args.images,
         out=args.out,

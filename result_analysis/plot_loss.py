@@ -1,12 +1,29 @@
-"""Trace la loss du pré-entraînement à chaque step loggé, à partir de logs/train.log."""
+"""Trace la loss du pré-entraînement à chaque step loggé, à partir de logs/<run>.log.
+
+Usage (depuis la racine du projet) :
+    python result_analysis/plot_loss.py                    # DEFAULT_RUN
+    python result_analysis/plot_loss.py --run cifar10_d128
+"""
+import argparse
 import re
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parent.parent
-LOG = ROOT / "logs" / "train.log"
-OUT = Path(__file__).resolve().parent / "loss_par_step.png"
+sys.path.insert(0, str(ROOT))
+
+from jepa.config import DEFAULT_RUN, PRESETS  # noqa: E402
+
+parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+parser.add_argument("--run", default=DEFAULT_RUN, choices=sorted(PRESETS),
+                    help="run dont on trace la loss (preset de jepa/config.py)")
+parser.add_argument("--out", default=None, help="défaut : loss_par_step_<run>.png")
+args = parser.parse_args()
+
+LOG = ROOT / "logs" / f"{args.run}.log"
+OUT = Path(args.out) if args.out else Path(__file__).resolve().parent / f"loss_par_step_{args.run}.png"
 
 text = LOG.read_text(encoding="utf-8", errors="ignore")
 
@@ -45,7 +62,7 @@ ax.set_xlim(0, total_steps)
 ax.set_ylim(0, None)
 ax.set_xlabel("Step", color=MUTED)
 ax.set_ylabel("Loss (prédicteur vs encodeur cible)", color=MUTED)
-ax.set_title(f"I-JEPA — loss par step ({max(epochs)} epochs, {total_steps} steps, loggée tous les 50 steps)",
+ax.set_title(f"I-JEPA ({args.run}) — loss par step ({max(epochs)} epochs, {total_steps} steps, loggée tous les 50 steps)",
              loc="left", color=INK, fontsize=12)
 
 # Axe secondaire en epochs (même échelle, simple relabel de l'axe x).

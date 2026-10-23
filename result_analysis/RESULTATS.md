@@ -1,6 +1,6 @@
 # Synthèse des résultats — I-JEPA sur CIFAR-10
 
-*Run du 13–14/10/2026, checkpoint `checkpoints/jepa.weights.h5`.*
+*Run du 13–14/10/2026, checkpoint `checkpoints/cifar10_d128/jepa.weights.h5` (run `cifar10_d128`).*
 
 ## En bref
 
@@ -33,7 +33,7 @@ Les 767 warnings sont des `DeprecationWarning` de NumPy 2 / gast, sans impact su
 
 ![Loss par step](loss_par_step.png)
 
-*Généré par `plot_loss.py` à partir de `logs/train.log` (loss loggée tous les 50 steps).*
+*Généré par `plot_loss.py` à partir de `logs/cifar10_d128.log` (loss loggée tous les 50 steps).*
 
 | Epoch | 1 | 2 | 5 | 10 | 15 | 20 | 25 | 30 |
 |---|---|---|---|---|---|---|---|---|
@@ -77,8 +77,8 @@ Script : `predicted_fill.py`. I-JEPA prédit des embeddings, pas des pixels. Cha
 
 ```bash
 python -m pytest -q                       # tests unitaires
-python -m jepa.train                      # pré-entraînement (~4 h sur CPU)
-python result_analysis/plot_loss.py       # courbe de loss
-python result_analysis/check_collapse.py  # vérification du collapse
-python result_analysis/predicted_fill.py  # visualisation des prédictions
+python -m jepa.train --run cifar10_d128 > logs/cifar10_d128.log 2>&1  # pré-entraînement (~4 h sur CPU)
+python result_analysis/plot_loss.py --run cifar10_d128       # courbe de loss
+python result_analysis/check_collapse.py --run cifar10_d128  # vérification du collapse
+python result_analysis/predicted_fill.py --run cifar10_d128  # visualisation des prédictions
 ```

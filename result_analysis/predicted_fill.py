@@ -12,6 +12,7 @@ comme à l'entraînement.
 Usage (depuis la racine du projet) :
     python result_analysis/predicted_fill.py
     python result_analysis/predicted_fill.py --seed 3 --images 3
+    python result_analysis/predicted_fill.py --run cifar10_d128
 """
 
 import argparse
@@ -23,28 +24,28 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from jepa.config import JEPAConfig  # noqa: E402
+from jepa.config import DEFAULT_RUN, PRESETS, get_config  # noqa: E402
 from jepa.data import build_probe_dataset  # noqa: E402
 from jepa.masking import sample_masks  # noqa: E402
 from jepa.model import JEPA  # noqa: E402
+from jepa.train import checkpoint_path  # noqa: E402
 from jepa.visualise import (BLOCK_COLOURS, block_bounds,  # noqa: E402
                             context_view, denormalise, patch_region)
 
-CHECKPOINT = ROOT / "checkpoints" / "jepa.weights.h5"
 BANK_BATCHES = 16  # 16 x 128 = 2048 images de test, soit 131k patchs candidats
 
 
-def load_model(config, images, rng):
-    """Même séquence de build que dans train.py, puis chargement des poids."""
+def load_model(config, images, rng, run):
+    """Même séquence de build que dans train.py, puis chargement des poids du run."""
     model = JEPA(config)
     model.init_target_encoder()
     model(images, *sample_masks(config, rng))
-    model.load_weights(str(CHECKPOINT))
+    model.load_weights(checkpoint_path(run, ROOT))
     return model
 
 
 class PatchBank:
-    """Embedding cible et pixels de chaque patch de N images de test CIFAR-10."""
+    """Embedding cible et pixels de chaque patch de N images de test du dataset du run."""
 
     def __init__(self, model, config, num_batches=BANK_BATCHES):
         batches = [img for img, _ in build_probe_dataset(config, split="test").take(num_batches)]
@@ -157,15 +158,19 @@ def mask_summary(context_indices, target_indices, config):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--run", default=DEFAULT_RUN, choices=sorted(PRESETS),
+                        help="run à charger (preset de jepa/config.py)")
     parser.add_argument("--seed", type=int, default=0, help="tirage du masque et des images")
     parser.add_argument("--images", type=int, default=3)
-    parser.add_argument("--out", default=str(Path(__file__).parent / "predicted_samples.png"))
+    parser.add_argument("--out", default=None,
+                        help="image produite (défaut : predicted_samples_<run>.png)")
     args = parser.parse_args()
+    out = args.out or str(Path(__file__).parent / f"predicted_samples_{args.run}.png")
 
-    config = JEPAConfig()
+    config = get_config(args.run)
     rng = np.random.default_rng(args.seed)
     first_batch = next(iter(build_probe_dataset(config, split="test")))[0]
-    model = load_model(config, first_batch, rng)
+    model = load_model(config, first_batch, rng, args.run)
     bank = PatchBank(model, config)
 
     context_indices, target_indices = sample_masks(config, rng)
@@ -174,13 +179,13 @@ def main():
 
     fills, hits, total = fill_images(model, bank, images, context_indices, target_indices,
                                      exclude=chosen)
-    title = (f"I-JEPA, test set  --  seed {args.seed}, "
+    title = (f"I-JEPA ({args.run}), test set  --  seed {args.seed}, "
              f"{mask_summary(context_indices, target_indices, config)}\n"
              f"chaque patch masqué = patch d'une autre image dont l'embedding est le plus proche "
              f"de la prédiction\nvrai patch retrouvé en 1er parmi {len(bank) // 1000}k : "
              f"{100 * hits / total:.0f} % ({hits}/{total})")
     plot_fills(denormalise(images, config), fills, context_indices, target_indices, config,
-               title, args.out)
+               title, out)
     print(f"vrai patch en top-1 : {hits}/{total} ({100 * hits / total:.1f} %)")
 
 

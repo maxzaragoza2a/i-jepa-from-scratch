@@ -1,4 +1,4 @@
-"""Pre-train the JEPA on CIFAR-10.
+"""Pre-train the JEPA on CIFAR-10 or STL-10 (config.dataset).
 
 One training step, for one batch:
     sample_masks          -> context_indices, target_indices (shared by the batch)
@@ -8,8 +8,13 @@ One training step, for one batch:
     update_target_encoder -> target encoder pulled towards the context encoder
 
 Usage:
-    python -m jepa.train                   # full run, config.epochs epochs
-    python -m jepa.train --max-steps 20    # smoke test
+    python -m jepa.train                       # full run of DEFAULT_RUN
+    python -m jepa.train --run cifar10_d128    # another preset of jepa/config.py
+    python -m jepa.train --max-steps 20        # smoke test
+
+The weights go to checkpoints/<run>/jepa.weights.h5. To keep the log that
+result_analysis/plot_loss.py reads:
+    python -m jepa.train --run cifar10_d256 > logs/cifar10_d256.log 2>&1
 """
 
 import argparse
@@ -20,7 +25,7 @@ import numpy as np
 import tensorflow as tf
 import keras
 
-from jepa.config import JEPAConfig
+from jepa.config import DEFAULT_RUN, PRESETS, JEPAConfig, get_config
 from jepa.data import build_pretrain_dataset
 from jepa.masking import sample_masks
 from jepa.model import JEPA, jepa_loss
@@ -106,6 +111,11 @@ def train_one_epoch(model: JEPA, optimizer, dataset, rng, step: int,
 
     mean_loss = float(np.mean(losses)) if losses else float("nan")
     return mean_loss, step
+
+
+def checkpoint_path(run: str, root: str = ".") -> str:
+    """checkpoints/<run>/jepa.weights.h5, where train() saves that run."""
+    return os.path.join(root, "checkpoints", run, "jepa.weights.h5")
 
 
 def save_checkpoint(model: JEPA, out_dir: str, name: str = "jepa"):
@@ -196,16 +206,19 @@ def train(config: JEPAConfig, epochs=None, max_steps=None,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--run", default=DEFAULT_RUN, choices=sorted(PRESETS),
+                        help=f"preset of jepa/config.py (default: {DEFAULT_RUN})")
     parser.add_argument("--epochs", type=int, default=None,
                         help="number of epochs (default: config.epochs)")
     parser.add_argument("--max-steps", type=int, default=None,
                         help="stop after this many steps, for a smoke test")
-    parser.add_argument("--out", default="checkpoints",
-                        help="where to save the weights")
+    parser.add_argument("--out", default=None,
+                        help="where to save the weights (default: checkpoints/<run>)")
     args = parser.parse_args()
 
-    train(JEPAConfig(), epochs=args.epochs, max_steps=args.max_steps,
-          out_dir=args.out)
+    out_dir = args.out or os.path.dirname(checkpoint_path(args.run))
+    train(get_config(args.run), epochs=args.epochs, max_steps=args.max_steps,
+          out_dir=out_dir)
 
 
 if __name__ == "__main__":

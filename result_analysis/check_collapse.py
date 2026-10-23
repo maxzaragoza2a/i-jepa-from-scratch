@@ -2,7 +2,8 @@
 
 Pour chaque encodeur (entraîné, et aléatoire comme référence), sur N images :
     - std par dimension des embeddings L2-normalisés, moyennée sur les dims.
-      Collapse -> ~0. Embeddings bien étalés -> ~1/sqrt(d) = 0.088 pour d=128.
+      Collapse -> ~0. Embeddings bien étalés -> ~1/sqrt(d) (0.088 pour d=128,
+      0.0625 pour d=256).
     - nombre de dimensions mortes (std < 1e-3).
     - rang effectif (exp de l'entropie des valeurs singulières normalisées).
       Collapse dimensionnel -> petit devant d.
@@ -10,9 +11,11 @@ Mesuré sur deux niveaux : l'embedding moyen de chaque image (moyenne des 64
 tokens), et tous les tokens pris séparément.
 
 Usage (depuis la racine du projet) :
-    python result_analysis/check_collapse.py
+    python result_analysis/check_collapse.py                    # DEFAULT_RUN
+    python result_analysis/check_collapse.py --run cifar10_d128
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -21,22 +24,23 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from jepa.config import JEPAConfig  # noqa: E402
+from jepa.config import DEFAULT_RUN, PRESETS, get_config  # noqa: E402
 from jepa.data import build_probe_dataset  # noqa: E402
 from jepa.masking import sample_masks  # noqa: E402
 from jepa.model import JEPA  # noqa: E402
+from jepa.train import checkpoint_path  # noqa: E402
 
 NUM_BATCHES = 8  # 8 x 128 = 1024 images de test
-CHECKPOINT = ROOT / "checkpoints" / "jepa.weights.h5"
 
 
-def build_model(config, images, load=True):
-    """Même séquence de build que dans train.py, puis chargement des poids."""
+def build_model(config, images, run=None):
+    """Même séquence de build que dans train.py, puis chargement des poids
+    du run (aucun si run vaut None : encodeur aléatoire)."""
     model = JEPA(config)
     model.init_target_encoder()
     model(images, *sample_masks(config, np.random.default_rng(0)))
-    if load:
-        model.load_weights(str(CHECKPOINT))
+    if run is not None:
+        model.load_weights(checkpoint_path(run, ROOT))
     return model
 
 
@@ -62,16 +66,22 @@ def embed(encoder, batches):
 
 
 def main():
-    config = JEPAConfig()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--run", default=DEFAULT_RUN, choices=sorted(PRESETS),
+                        help="run à analyser (preset de jepa/config.py)")
+    args = parser.parse_args()
+
+    config = get_config(args.run)
     batches = [img for img, _ in build_probe_dataset(config, split="test").take(NUM_BATCHES)]
 
     encoders = {
-        "aléatoire (réf.)": build_model(config, batches[0], load=False).target_encoder,
-        "entraîné": build_model(config, batches[0]).target_encoder,
+        "aléatoire (réf.)": build_model(config, batches[0]).target_encoder,
+        "entraîné": build_model(config, batches[0], args.run).target_encoder,
     }
     embeddings = {name: embed(enc, batches) for name, enc in encoders.items()}
 
-    print(f"\n{len(batches) * config.batch_size} images de test, d={config.embed_dim} "
+    print(f"\nrun {args.run}, {len(batches) * config.batch_size} images de test, "
+          f"d={config.embed_dim} "
           f"(std normalisée idéale ~{1 / np.sqrt(config.embed_dim):.3f}, "
           f"rang effectif max {config.embed_dim})")
     for i, level in enumerate(("par image (moyenne des tokens)", "par token")):

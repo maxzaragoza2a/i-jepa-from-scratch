@@ -24,7 +24,7 @@ def predictor(cfg):
 
 def context(batch=2, count=20, seed=0):
     rng = np.random.default_rng(seed)
-    return rng.standard_normal((batch, count, 128)).astype("float32")
+    return rng.standard_normal((batch, count, JEPAConfig().embed_dim)).astype("float32")
 
 
 CONTEXT_INDICES = np.arange(20)

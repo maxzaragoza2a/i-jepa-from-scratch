@@ -1,7 +1,8 @@
 """Patch embedding: image -> patches -> embeddings + positional encoding.
 
-Shapes (32x32x3 image, 4x4 patches, embed_dim=128):
-    (B, 32, 32, 3) -> (B, 64, 48) -> (B, 64, 128)
+Shapes (embed_dim=256):
+    CIFAR-10, 32x32 image, 4x4 patches: (B, 32, 32, 3) -> (B, 64, 48)  -> (B, 64, 256)
+    STL-10,   64x64 image, 8x8 patches: (B, 64, 64, 3) -> (B, 64, 192) -> (B, 64, 256)
 """
 
 import numpy as np
